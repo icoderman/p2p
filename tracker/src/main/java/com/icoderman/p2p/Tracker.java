@@ -15,9 +15,9 @@ public class Tracker {
         ServerSocket trackerServerSocket;
         Socket peerSocket;
 
-        Scanner scan = new Scanner(System.in);
-        System.out.println("Please enter port for Tracker :");
-        trackerPort = Integer.parseInt(scan.nextLine());
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Please enter port for Tracker: ");
+        trackerPort = Integer.parseInt(scanner.nextLine());
 
         try {
             InetAddress trackerIp = InetAddress.getLocalHost();
@@ -38,6 +38,6 @@ public class Tracker {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        scan.close();
+        scanner.close();
     }
 }
