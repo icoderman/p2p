@@ -133,6 +133,58 @@ public class PeerApp {
                 availablePeers.add(new Peer(peer[0], Integer.parseInt(peer[1])));
             }
             System.out.println(availablePeers);
+            // 1. Download file from one of the peer
+
+            String pHost = "";
+            Integer pPort = 0;
+
+            Socket dnClient;
+            DataOutputStream dnOut;
+            DataInputStream dnIn;
+            InputStream dnInput;
+            BufferedOutputStream buffOut = null;
+            FileOutputStream fileOut = null;
+            String down = "down/" + fileName;
+
+            dnClient = new Socket(pHost, pPort);		//connect to the peer
+
+		/*Server IO streams are instantiated*/
+            dnOut = new DataOutputStream(dnClient.getOutputStream());
+            dnIn = new DataInputStream(dnClient.getInputStream());
+
+            dnOut.writeUTF("GET");			//send download request
+            dnOut.writeUTF(fileName);		//send name of file to be downloaded
+            int fileSize = dnIn.readInt();	//read size of file
+
+            int bytesRead;
+            int current = 0;
+
+	    /*Initiate file receive using buffered stream*/
+            try {
+                System.out.println("\nRecieving file " + fileName + "...!");
+                byte [] mybytearray  = new byte [fileSize];
+                dnInput = dnClient.getInputStream();
+                fileOut = new FileOutputStream(down);
+                buffOut = new BufferedOutputStream(fileOut);
+                bytesRead = dnInput.read(mybytearray,0,mybytearray.length);
+                current = bytesRead;
+
+                do {
+                    bytesRead = dnInput.read(mybytearray, current, (mybytearray.length-current));
+                    if(bytesRead >= 0){
+                        current += bytesRead;
+                    }
+                } while(bytesRead > 0);
+
+                buffOut.write(mybytearray, 0 , current);		//write the downloaded file
+                buffOut.flush();
+                System.out.println("File - " + fileName + " downloaded successfully !");
+
+            }
+            finally {
+                dnClient.close();
+                if (buffOut != null) buffOut.close();
+            }
         }
     }
 }
