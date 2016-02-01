@@ -1,6 +1,7 @@
 package com.icoderman.p2p.service;
 
-import com.icoderman.p2p.domain.PeerInfo;
+import com.icoderman.p2p.dao.TrackerRepository;
+import com.icoderman.p2p.domain.Peer;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -12,90 +13,94 @@ import java.util.Set;
 
 public class PeerRequestService {
 
+    private Peer peer;
     private Socket peerSocket;
-    private IndexService indexService;
-    private int peerId;
+    private TrackerRepository trackerRepository;
 
-    public PeerRequestService(Socket peerSocket, IndexService index, int peerId) {
+    public PeerRequestService(Peer peer, Socket peerSocket, TrackerRepository trackerRepository) {
+        this.peer = peer;
         this.peerSocket = peerSocket;
-        this.indexService = index;
-        this.peerId = peerId;
+        this.trackerRepository = trackerRepository;
     }
 
-    // This method will take client requests and process it.
+    /**
+     * Handles peer's requests
+     *
+     * @param trackerOutputStream
+     * @param peerInputStream
+     */
     public void processRequests(DataOutputStream trackerOutputStream, DataInputStream peerInputStream) {
-        System.out.println("Process Request from Peer...");
-        String fileName;
-        int flag = 0;
-
+        System.out.println("Process Request from Peer:" + peer);
         try {
-            //till the client connection with server is bound, it will listen for requests from client
+            // till the peer connection with tracker is bound, it will listen for requests from peer
             while (peerSocket.isBound()) {
-                String code;
-                code = peerInputStream.readUTF();
-
-				/* "UPDATE" request will update files available at client to central indexService */
-                if (code.equalsIgnoreCase("UPDATE")) {
-                    processUpdate(peerInputStream);
-                }
-                /* "SEARCH" request will search for client requested file central indexService */
-                else if (code.equalsIgnoreCase("SEARCH")) {
-                    processSearch(trackerOutputStream, peerInputStream);
-                }
-				/* "CLOSE" request will end the client connection with server */
-                else if (code.equalsIgnoreCase("CLOSE")) {
-                    flag = processClose();
+                String code = peerInputStream.readUTF();
+                switch (code) {
+                    case "UPDATE":
+                        processUpdate(peerInputStream);
+                        System.out.println(trackerRepository.getFiles());
+                        break;
+                    case "SEARCH":
+                        processSearch(trackerOutputStream, peerInputStream);
+                        break;
+                    case "CLOSE":
+                        processClose();
+                        break;
                 }
             }
         } catch (IOException e) {
-            if (flag != 1) {
-                System.out.println("Peer [ " + (peerSocket.getInetAddress()).getHostAddress() + ":" + peerSocket.getPort() + " ] disconnected !");
-            }
+            System.out.println(e.getMessage());
         }
     }
 
-    private int processClose() throws IOException {
-        int flag;
-        flag = 1;
-        indexService.removePeer(peerId);
-        peerSocket.close();
-        System.out.println("Peer [ " + (peerSocket.getInetAddress()).getHostAddress() + ":" + peerSocket.getPort() + " ] disconnected !");
-        return flag;
-    }
-
-    private void processSearch(DataOutputStream serverOut, DataInputStream clientIn) throws IOException {
-        String fileName = clientIn.readUTF();
-        System.out.println("Peer looking for file: "+fileName);
-        Set<Integer> currentList = indexService.searchFiles(fileName);
-        if (currentList.contains(peerId)) {
-            currentList.remove(peerId);
-        }
-        int size = currentList.size();
-        if (size > 0) {
-            System.out.println("Size > 0");
-            serverOut.writeInt(size);
-            for (int peerId : currentList) {
-                PeerInfo resPeer = indexService.searchPeers(peerId);
-                String peer = resPeer.getHostName() + " " + resPeer.getPort();
-                try {
-                    serverOut.writeUTF(peer);
-                } catch (IOException e) {
-                    System.out.println("Peer [ " + (peerSocket.getInetAddress()).getHostAddress() + ":" + peerSocket.getPort() + " ] disconnected !");
-                }
-            }
-        }
-        System.out.println("writing 0");
-        serverOut.write(0);
-    }
-
+    /**
+     * Updates TrackerRepository with available files from peer
+     * @param peerInputStream
+     */
     private void processUpdate(DataInputStream peerInputStream) throws IOException {
         List<String> files = new ArrayList<>();
         int filesCount = peerInputStream.readInt();
-        for (int i = 0; i < filesCount; i++) {                //Receive file names from client sequentially
+        for (int i = 0; i < filesCount; i++) {
             files.add(peerInputStream.readUTF());
         }
-        indexService.addFiles(files, peerId);    //addFiles() will add file details to central indexService
+        trackerRepository.addFiles(files, peer);
     }
+
+    /**
+     * Search requested filename in the trackerRepository and returns size and list of peers
+     * @param serverOut
+     * @param clientIn
+     * @throws IOException
+     */
+    private void processSearch(DataOutputStream serverOut, DataInputStream clientIn) throws IOException {
+        String fileName = clientIn.readUTF();
+        System.out.println("Peer ["+ peer +"] looking for file: "+fileName);
+        Set<Peer> availablePeers = trackerRepository.searchFile(fileName);
+        if (availablePeers.contains(peer)) {
+            availablePeers.remove(peer);
+        }
+        int size = availablePeers.size();
+        System.out.println(size + " peers have requested file: "+ fileName);
+        if (size > 0) {
+            serverOut.writeInt(size);
+            for (Peer availablePeer : availablePeers) {
+                serverOut.writeUTF(availablePeer.getHostName() + ":" + availablePeer.getPort());
+            }
+        }
+        serverOut.write(0);
+    }
+
+    /**
+     * Removes peer from repository and closes socket
+     * @throws IOException
+     */
+    private void processClose() throws IOException {
+        trackerRepository.removePeer(peer);
+        peerSocket.close();
+        System.out.println("Peer [ " + peer + " ] disconnected !");
+    }
+
+
 
 }
 

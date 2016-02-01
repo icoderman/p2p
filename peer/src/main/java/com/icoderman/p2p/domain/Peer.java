@@ -1,13 +1,13 @@
 package com.icoderman.p2p.domain;
 
-public class PeerInfo {
+public class Peer {
     private String hostName;
     private int port;
 
-    public PeerInfo() {
+    public Peer() {
     }
 
-    public PeerInfo(String hostName, int port) {
+    public Peer(String hostName, int port) {
         this.hostName = hostName;
         this.port = port;
     }
@@ -33,10 +33,10 @@ public class PeerInfo {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        PeerInfo peerInfo = (PeerInfo) o;
+        Peer peer = (Peer) o;
 
-        if (port != peerInfo.port) return false;
-        return !(hostName != null ? !hostName.equals(peerInfo.hostName) : peerInfo.hostName != null);
+        if (port != peer.port) return false;
+        return !(hostName != null ? !hostName.equals(peer.hostName) : peer.hostName != null);
 
     }
 
@@ -49,7 +49,7 @@ public class PeerInfo {
 
     @Override
     public String toString() {
-        return "PeerInfo{" +
+        return "Peer{" +
                 "hostName='" + hostName + '\'' +
                 ", port=" + port +
                 '}';

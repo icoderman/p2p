@@ -1,7 +1,7 @@
 package com.icoderman.p2p;
 
-import com.icoderman.p2p.domain.PeerInfo;
-import com.icoderman.p2p.service.IndexService;
+import com.icoderman.p2p.dao.TrackerRepository;
+import com.icoderman.p2p.domain.Peer;
 import com.icoderman.p2p.service.PeerRequestService;
 
 import java.io.DataInputStream;
@@ -9,13 +9,19 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 
+/**
+ * PeerHandlerThread adds information about new connected Peer to the TrackerRepository
+ * and handles communication with connected Peer.
+ */
 public class PeerHandlerThread implements Runnable {
-    private Socket peerSocket;
-    private IndexService indexService;
+    private static final int SUCCESS_CONNECTION = 1;
 
-    public PeerHandlerThread(Socket peerSocket, IndexService indexService) {
+    private Socket peerSocket;
+    private TrackerRepository trackerRepository;
+
+    public PeerHandlerThread(Socket peerSocket, TrackerRepository trackerRepository) {
         this.peerSocket = peerSocket;
-        this.indexService = indexService;
+        this.trackerRepository = trackerRepository;
     }
 
     @Override
@@ -23,20 +29,18 @@ public class PeerHandlerThread implements Runnable {
         try {
             DataInputStream peerDataInputStream = new DataInputStream(peerSocket.getInputStream());
             //addPeer() will add an entry of peer in Central Index
-            int peerId = indexService.addPeer(new PeerInfo(peerSocket.getInetAddress().getHostAddress(), peerSocket.getPort()));
-            DataOutputStream trackerDataOutputStream;
-            if(peerId != 0){
-                trackerDataOutputStream = new DataOutputStream(peerSocket.getOutputStream());
-                // Send a byte to client indicating connection and central update was successful
-                trackerDataOutputStream.writeByte(1);
-            } else {
-                trackerDataOutputStream = new DataOutputStream(peerSocket.getOutputStream());
-                trackerDataOutputStream.writeByte(0);
-            }
-            PeerRequestService peerRequestService = new PeerRequestService(peerSocket, indexService, peerId);
+            Peer newPeer = new Peer(peerSocket.getInetAddress().getHostAddress(), peerSocket.getPort());
+            trackerRepository.addPeer(newPeer);
+            DataOutputStream trackerDataOutputStream = new DataOutputStream(peerSocket.getOutputStream());
+            // Send a byte to client indicating connection and central update was successful
+            trackerDataOutputStream.writeByte(SUCCESS_CONNECTION);
+
+            PeerRequestService peerRequestService = new PeerRequestService(newPeer, peerSocket, trackerRepository);
             peerRequestService.processRequests(trackerDataOutputStream, peerDataInputStream);
+
         } catch (IOException e) {
-            System.out.println("Peer [ " + (peerSocket.getInetAddress()).getHostAddress() + ":" + peerSocket.getPort() + " ] disconnected !");
+            e.printStackTrace();
+            //System.out.println("Peer [ " + (peerSocket.getInetAddress()).getHostAddress() + ":" + peerSocket.getPort() + " ] disconnected !");
         }
     }
 }

@@ -1,6 +1,6 @@
 package com.icoderman.p2p;
 
-import com.icoderman.p2p.service.IndexService;
+import com.icoderman.p2p.dao.TrackerRepository;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -8,7 +8,12 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Scanner;
 
-public class Tracker {
+/**
+ * Main P2P TrackerApp that responsible for:
+ *  1. tracker should accept connection with list of shared files (file names and hashes) from the peer
+ *  2. tracker should check requested file in the index and return list of peers that contains this file
+ */
+public class TrackerApp {
 
     public static void main(String[] args) {
         int trackerPort;
@@ -24,16 +29,15 @@ public class Tracker {
             trackerServerSocket = new ServerSocket(trackerPort);
             System.out.println("Tracker is active on the following address:" + trackerIp.getHostAddress() + ":" + trackerServerSocket.getLocalPort());
 
-            IndexService indexService = new IndexService();
+            TrackerRepository trackerRepository = new TrackerRepository();
             System.out.println("Peers:");
 
             boolean listening = true;
             while (listening) {
-                // TODO: 1. tracker should accept connection with list of shared files from the peer
-                // TODO: 2. tracker should check requested file and return list of peers that contains this file
                 peerSocket = trackerServerSocket.accept();
                 System.out.println("Peer [ " + (peerSocket.getInetAddress()).getHostAddress() + ":" + peerSocket.getPort() + " ] connected...");
-                (new Thread(new PeerHandlerThread(peerSocket, indexService))).start();
+                // todo: replace with pool
+                (new Thread(new PeerHandlerThread(peerSocket, trackerRepository))).start();
             }
         } catch (IOException e) {
             e.printStackTrace();
