@@ -36,14 +36,14 @@ public class PeerRequestService {
             while (peerSocket.isBound()) {
                 String code = peerInputStream.readUTF();
                 switch (code) {
-                    case "UPDATE":
+                    case "update":
                         processUpdate(peerInputStream);
                         System.out.println(trackerRepository.getFiles());
                         break;
-                    case "SEARCH":
+                    case "search":
                         processSearch(trackerOutputStream, peerInputStream);
                         break;
-                    case "CLOSE":
+                    case "close":
                         processClose();
                         break;
                 }
@@ -55,6 +55,7 @@ public class PeerRequestService {
 
     /**
      * Updates TrackerRepository with available files from peer
+     *
      * @param peerInputStream
      */
     private void processUpdate(DataInputStream peerInputStream) throws IOException {
@@ -69,13 +70,14 @@ public class PeerRequestService {
 
     /**
      * Search requested filename in the trackerRepository and returns size and list of peers
+     *
      * @param trackerOut
      * @param peerIn
      * @throws IOException
      */
     private void processSearch(DataOutputStream trackerOut, DataInputStream peerIn) throws IOException {
         String fileName = peerIn.readUTF();
-        System.out.println("Peer [" + peer + "] looking for file: " + fileName);
+        System.out.println(peer + " looking for file: " + fileName);
         Set<Peer> availablePeers = trackerRepository.searchFile(fileName);
         if (availablePeers.contains(peer)) {
             availablePeers.remove(peer);
@@ -94,14 +96,14 @@ public class PeerRequestService {
 
     /**
      * Removes peer from tracker repository and closes socket
+     *
      * @throws IOException
      */
     private void processClose() throws IOException {
         trackerRepository.removePeer(peer);
         peerSocket.close();
-        System.out.println("Peer [ " + peer + " ] disconnected!");
+        System.out.println(peer + " disconnected!");
     }
-
 
 
 }
