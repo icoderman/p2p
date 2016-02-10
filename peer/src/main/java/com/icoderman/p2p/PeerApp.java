@@ -11,58 +11,37 @@ import java.util.Set;
 
 public class PeerApp {
 
+    private static final int SUCCESS_CONNECTION = 1;
     private static String SHARED_DIRECTORY;
 
     public static void main(String[] args) {
-        int trackerPort;
-        int peerPort;
-        String trackerHost;
-
-
-        ServerSocket peerServerSocket;
-        Socket trackerSocket;
-
-        InputStream trackerInputStream;
-        DataInputStream trackerInputDataStream;
-        DataOutputStream peerOutputStream;
-
+        SHARED_DIRECTORY = args[0];
         Scanner scanner = new Scanner(System.in);
-        System.out.print("Enter shared directory:");
-        SHARED_DIRECTORY = scanner.nextLine();
-        System.out.print("Enter Tracker address:");
-        trackerHost = scanner.nextLine();
-        System.out.print("Enter Tracker port:");
-        trackerPort = Integer.parseInt(scanner.nextLine());
-
+        System.out.println("Enter shared directory: " + SHARED_DIRECTORY);
+        System.out.print("Enter Tracker address:port:");
+        String[] trackerHostPort = scanner.nextLine().split(":");
         try {
-            trackerSocket = new Socket(trackerHost, trackerPort);
-            peerPort = trackerSocket.getLocalPort() + 1;
-            peerServerSocket = new ServerSocket(peerPort);
+            Socket trackerSocket = new Socket(trackerHostPort[0], Integer.parseInt(trackerHostPort[1]));
+            int peerPort = trackerSocket.getLocalPort() + 1;
+            ServerSocket peerServerSocket = new ServerSocket(peerPort);
 
-            trackerInputStream = trackerSocket.getInputStream();
-            trackerInputDataStream = new DataInputStream(trackerInputStream);
-            peerOutputStream = new DataOutputStream(trackerSocket.getOutputStream());
+            InputStream trackerInputStream = trackerSocket.getInputStream();
+            DataInputStream trackerInputDataStream = new DataInputStream(trackerInputStream);
+            DataOutputStream peerOutputStream = new DataOutputStream(trackerSocket.getOutputStream());
 
-            if(trackerInputDataStream.readByte() == 1){				//if server connection is successful display message
+            if (trackerInputDataStream.readByte() == SUCCESS_CONNECTION) {
                 System.out.println("Successfully connected to the Tracker");
                 updateTracker(peerOutputStream);
-
-                //a thread is created for the local server
-                PeerServerHandlerThread peerServerHandlerThread = new PeerServerHandlerThread(peerServerSocket);
-                Thread t = new Thread(peerServerHandlerThread);
+                PeerServerHandlerThread peerServerHandlerThread =  new PeerServerHandlerThread(peerServerSocket, SHARED_DIRECTORY);
+                Thread t = new Thread(peerServerHandlerThread, "PeerServerHandlerThread");
                 t.start();
-
 
                 String command = "";
                 String fileName = "";
-                while(!command.equals("CLOSE")){
+                while (!command.equals("CLOSE")) {
                     System.out.println("Please enter command (CLOSE, SEARCH, DOWNLOAD): ");
                     command = scanner.nextLine();
                     switch (command) {
-                        case "CLOSE":
-                            peerOutputStream.writeUTF("CLOSE");
-                            System.out.println("Disconnected from Tracker...");
-                            break;
                         case "UPDATE":
                             updateTracker(peerOutputStream);
                             break;
@@ -76,11 +55,17 @@ public class PeerApp {
                             fileName = scanner.nextLine();
                             downloadFile(fileName, peerOutputStream, trackerInputDataStream);
                             break;
+                        case "CLOSE":
+                            peerOutputStream.writeUTF("CLOSE");
+                            peerServerSocket.close();
+                            System.out.println("Disconnected from Tracker...");
+                            break;
+                        default:
+                            System.out.println("Available commands: UPDATE, SEARCH, DOWNLOAD, CLOSE");
                     }
                 }
             }
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             System.out.println("Error: Connection to the Tracker failed!");
             e.printStackTrace();
         }
@@ -92,8 +77,9 @@ public class PeerApp {
         peerOutputStream.writeUTF(fileName);
         int size = trackerInputDataStream.readInt();
         if (size > 0) {
-            System.out.println("File '"+fileName+"' is available on "+size+" peers, use DOWNLOAD command for downloading...");
+            System.out.println("File '" + fileName + "' is available on " + size + " peers, use DOWNLOAD command for downloading...");
         }
+        System.out.println("File " + fileName + " not found on the tracker...");
     }
 
     private static void updateTracker(DataOutputStream clientOut) throws IOException {
@@ -102,19 +88,19 @@ public class PeerApp {
         clientOut.writeUTF("UPDATE");
         File[] files = getSharedFiles();
         clientOut.writeInt(files.length);
-        for(File file : files) {
+        for (File file : files) {
             clientOut.writeUTF(file.getName());
         }
     }
 
     /**
      * Search for upload directory if doesn't exist create
+     *
      * @return
      */
     private static File[] getSharedFiles() {
-        //File directory = new File("shared");
         File directory = new File(SHARED_DIRECTORY);
-        if(!directory.exists()){
+        if (!directory.exists()) {
             directory.mkdir();
             return new File[]{};
         }
@@ -146,15 +132,15 @@ public class PeerApp {
             FileOutputStream fileOut = null;
             String down = "down/" + fileName;
 
-            dnClient = new Socket(pHost, pPort);		//connect to the peer
+            dnClient = new Socket(pHost, pPort);        //connect to the peer
 
 		/*Server IO streams are instantiated*/
             dnOut = new DataOutputStream(dnClient.getOutputStream());
             dnIn = new DataInputStream(dnClient.getInputStream());
 
-            dnOut.writeUTF("GET");			//send download request
-            dnOut.writeUTF(fileName);		//send name of file to be downloaded
-            int fileSize = dnIn.readInt();	//read size of file
+            dnOut.writeUTF("GET");            //send download request
+            dnOut.writeUTF(fileName);        //send name of file to be downloaded
+            int fileSize = dnIn.readInt();    //read size of file
 
             int bytesRead;
             int current = 0;
@@ -162,26 +148,25 @@ public class PeerApp {
 	    /*Initiate file receive using buffered stream*/
             try {
                 System.out.println("\nRecieving file " + fileName + "...!");
-                byte [] mybytearray  = new byte [fileSize];
+                byte[] mybytearray = new byte[fileSize];
                 dnInput = dnClient.getInputStream();
                 fileOut = new FileOutputStream(down);
                 buffOut = new BufferedOutputStream(fileOut);
-                bytesRead = dnInput.read(mybytearray,0,mybytearray.length);
+                bytesRead = dnInput.read(mybytearray, 0, mybytearray.length);
                 current = bytesRead;
 
                 do {
-                    bytesRead = dnInput.read(mybytearray, current, (mybytearray.length-current));
-                    if(bytesRead >= 0){
+                    bytesRead = dnInput.read(mybytearray, current, (mybytearray.length - current));
+                    if (bytesRead >= 0) {
                         current += bytesRead;
                     }
-                } while(bytesRead > 0);
+                } while (bytesRead > 0);
 
-                buffOut.write(mybytearray, 0 , current);		//write the downloaded file
+                buffOut.write(mybytearray, 0, current);        //write the downloaded file
                 buffOut.flush();
                 System.out.println("File - " + fileName + " downloaded successfully !");
 
-            }
-            finally {
+            } finally {
                 dnClient.close();
                 if (buffOut != null) buffOut.close();
             }

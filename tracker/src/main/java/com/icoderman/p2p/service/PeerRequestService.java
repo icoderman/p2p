@@ -64,7 +64,7 @@ public class PeerRequestService {
             files.add(peerInputStream.readUTF());
         }
         trackerRepository.addFiles(files, peer);
-        System.out.println("Peer " + peer + "added " + filesCount + " shared files to TrackerRepository: " + files);
+        System.out.println(peer + " added " + filesCount + " shared files to TrackerRepository: " + files);
     }
 
     /**
@@ -88,8 +88,8 @@ public class PeerRequestService {
                 trackerOut.writeUTF(availablePeer.getHostName() + ":" + availablePeer.getPort());
             }
         }
-        System.out.println("Requestd file not found...");
-        trackerOut.write(0);
+        System.out.println("Requested file not found...");
+        trackerOut.writeInt(0);
     }
 
     /**
