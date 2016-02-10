@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.net.Socket;
 
 /**
- * PeerHandlerThread adds information about new connected Peer to the TrackerRepository
+ * PeerHandlerThread adds information about new connected Peer to the InMemoryTrackerRepository
  * and handles communication with connected Peer.
  */
 public class PeerHandlerThread implements Runnable {
@@ -28,11 +28,10 @@ public class PeerHandlerThread implements Runnable {
     public void run() {
         try {
             DataInputStream peerDataInputStream = new DataInputStream(peerSocket.getInputStream());
-            //addPeer() will add an entry of peer in Central Index
             Peer newPeer = new Peer(peerSocket.getInetAddress().getHostAddress(), peerSocket.getPort());
             trackerRepository.addPeer(newPeer);
+
             DataOutputStream trackerDataOutputStream = new DataOutputStream(peerSocket.getOutputStream());
-            // Send a byte to client indicating connection and central update was successful
             trackerDataOutputStream.writeByte(SUCCESS_CONNECTION);
 
             PeerRequestService peerRequestService = new PeerRequestService(newPeer, peerSocket, trackerRepository);
@@ -40,7 +39,6 @@ public class PeerHandlerThread implements Runnable {
 
         } catch (IOException e) {
             e.printStackTrace();
-            //System.out.println("Peer [ " + (peerSocket.getInetAddress()).getHostAddress() + ":" + peerSocket.getPort() + " ] disconnected !");
         }
     }
 }

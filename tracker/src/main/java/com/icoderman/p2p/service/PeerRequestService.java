@@ -24,7 +24,7 @@ public class PeerRequestService {
     }
 
     /**
-     * Handles peer's requests
+     * Handles connected peer's requests
      *
      * @param trackerOutputStream
      * @param peerInputStream
@@ -64,40 +64,42 @@ public class PeerRequestService {
             files.add(peerInputStream.readUTF());
         }
         trackerRepository.addFiles(files, peer);
+        System.out.println("Peer " + peer + "added " + filesCount + " shared files to TrackerRepository: " + files);
     }
 
     /**
      * Search requested filename in the trackerRepository and returns size and list of peers
-     * @param serverOut
-     * @param clientIn
+     * @param trackerOut
+     * @param peerIn
      * @throws IOException
      */
-    private void processSearch(DataOutputStream serverOut, DataInputStream clientIn) throws IOException {
-        String fileName = clientIn.readUTF();
-        System.out.println("Peer ["+ peer +"] looking for file: "+fileName);
+    private void processSearch(DataOutputStream trackerOut, DataInputStream peerIn) throws IOException {
+        String fileName = peerIn.readUTF();
+        System.out.println("Peer [" + peer + "] looking for file: " + fileName);
         Set<Peer> availablePeers = trackerRepository.searchFile(fileName);
         if (availablePeers.contains(peer)) {
             availablePeers.remove(peer);
         }
         int size = availablePeers.size();
-        System.out.println(size + " peers have requested file: "+ fileName);
+        System.out.println(size + " peers have requested file: " + fileName);
         if (size > 0) {
-            serverOut.writeInt(size);
+            trackerOut.writeInt(size);
             for (Peer availablePeer : availablePeers) {
-                serverOut.writeUTF(availablePeer.getHostName() + ":" + availablePeer.getPort());
+                trackerOut.writeUTF(availablePeer.getHostName() + ":" + availablePeer.getPort());
             }
         }
-        serverOut.write(0);
+        System.out.println("Requestd file not found...");
+        trackerOut.write(0);
     }
 
     /**
-     * Removes peer from repository and closes socket
+     * Removes peer from tracker repository and closes socket
      * @throws IOException
      */
     private void processClose() throws IOException {
         trackerRepository.removePeer(peer);
         peerSocket.close();
-        System.out.println("Peer [ " + peer + " ] disconnected !");
+        System.out.println("Peer [ " + peer + " ] disconnected!");
     }
 
 

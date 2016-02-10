@@ -1,5 +1,6 @@
 package com.icoderman.p2p;
 
+import com.icoderman.p2p.dao.InMemoryTrackerRepository;
 import com.icoderman.p2p.dao.TrackerRepository;
 
 import java.io.IOException;
@@ -27,9 +28,9 @@ public class TrackerApp {
         try {
             InetAddress trackerIp = InetAddress.getLocalHost();
             trackerServerSocket = new ServerSocket(trackerPort);
-            System.out.println("Tracker is active on the following address:" + trackerIp.getHostAddress() + ":" + trackerServerSocket.getLocalPort());
+            System.out.println("Tracker is active on the following address: " + trackerIp.getHostAddress() + ":" + trackerServerSocket.getLocalPort());
 
-            TrackerRepository trackerRepository = new TrackerRepository();
+            TrackerRepository trackerRepository = new InMemoryTrackerRepository();
             System.out.println("Peers:");
 
             boolean listening = true;
@@ -37,7 +38,8 @@ public class TrackerApp {
                 peerSocket = trackerServerSocket.accept();
                 System.out.println("Peer [ " + (peerSocket.getInetAddress()).getHostAddress() + ":" + peerSocket.getPort() + " ] connected...");
                 // todo: replace with pool
-                (new Thread(new PeerHandlerThread(peerSocket, trackerRepository))).start();
+                Thread peerHandlerThread = new Thread(new PeerHandlerThread(peerSocket, trackerRepository));
+                peerHandlerThread.start();
             }
         } catch (IOException e) {
             e.printStackTrace();
